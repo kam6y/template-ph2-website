@@ -5,7 +5,6 @@ $password = 'root';
 
 try {
     $dbh = new PDO($dsn, $user, $password);
-    echo 'Connection success!';
 } catch (PDOException $e) {
     echo 'Connection failed: ' . $e->getMessage();
 }
@@ -13,10 +12,6 @@ try {
 // SQL ステートメント
 $sql = "SELECT content FROM questions";
 
-// テーブル内のレコードを順番に出力
-foreach ($dbh->query($sql) as $row) {
-    echo $row['content'];
-}
 
 $questions = $dbh->query("SELECT * FROM questions")->fetchAll(PDO::FETCH_ASSOC);
 $choices = $dbh->query("SELECT * FROM choices")->fetchAll(PDO::FETCH_ASSOC);
