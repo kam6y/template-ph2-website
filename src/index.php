@@ -2,7 +2,7 @@
 <html lang="ja">
 
 <?php
-  require('dbconnect.php');
+  require('db/dbconnect.php');
 ?>
 
 <head>

@@ -1,8 +1,64 @@
 <?php
+require __DIR__ . '/../db/dbconnect.php';
 
-require('../dbconnect.php');
+session_start();
 
+if (!isset($_SESSION['id'])) {
+  header('Location: /admin/auth/signin.php');
+} else {
+  if (isset($_SESSION['message'])) {
+    $message = $_SESSION['message'];
+    unset($_SESSION['message']);
+  }
+
+  $questions = $dbh->query("SELECT * FROM questions")->fetchAll();
+  $is_empty = count($questions) === 0;
+  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+      $dbh->beginTransaction();
+
+      // 削除する問題の画像ファイル名を取得
+      $sql = "SELECT image FROM questions WHERE id = :id";
+      $stmt = $dbh->prepare($sql);
+      $stmt->bindValue(":id", $_POST["id"]);
+      $stmt->execute();
+      $question = $stmt->fetch();
+      $image_name = $question['image'];
+
+      // 画像ファイルが存在する場合、削除する
+      if ($image_name) {
+        $image_path = __DIR__ . '/../assets/img/quiz/' . $image_name;
+        if (file_exists($image_path)) {
+          unlink($image_path);
+        }
+      }
+
+      // 問題と選択肢をデータベースから削除
+      $sql = "DELETE FROM choices WHERE question_id = :question_id";
+      $stmt = $dbh->prepare($sql);
+      $stmt->bindValue(":question_id", $_POST["id"]);
+      $stmt->execute();
+
+      $sql = "DELETE FROM questions WHERE id = :id";
+      $stmt = $dbh->prepare($sql);
+      $stmt->bindValue(":id", $_POST["id"]);
+      $stmt->execute();
+
+      $dbh->commit();
+      $_SESSION['message'] = "問題削除に成功しました。";
+      header('Location: ' . $_SERVER['PHP_SELF']);
+      exit;
+    } catch (PDOException $e) {
+      $dbh->rollBack();
+      $_SESSION['message'] = "問題削除に失敗しました。";
+      error_log($e->getMessage());
+      header('Location: ' . $_SERVER['PHP_SELF']);
+      exit;
+    }
+  }
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="ja">
 
@@ -23,9 +79,9 @@ require('../dbconnect.php');
 </head>
 
 <body>
-  <?php include(dirname(__FILE__) . '/../components/admin/header.php'); ?>
+  <?php include __DIR__ . '/../components/admin/header.php'; ?>
   <div class="wrapper">
-    <?php include(dirname(__FILE__) . '/../components/admin/sidebar.php'); ?>
+    <?php include __DIR__ . '/../components/admin/sidebar.php'; ?>
     <main>
       <div class="container">
         <h1 class="mb-4">問題一覧</h1>

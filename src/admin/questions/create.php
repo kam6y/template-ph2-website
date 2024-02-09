@@ -1,74 +1,80 @@
 <?php
+require __DIR__ . '/../../db/dbconnect.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
-require(dirname(__FILE__) . '/../../db/pdo.php');
+use Verot\Upload\Upload;
 
 session_start();
 
 if (!isset($_SESSION['id'])) {
   header('Location: /admin/auth/signin.php');
   exit;
-} else {
-  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-      // ファイルアップロードのバリデーション
-      if (!isset($_FILES['image']) || $_FILES['image']['error'] != UPLOAD_ERR_OK) {
-        throw new Exception("ファイルがアップロードされていない、またはアップロードでエラーが発生しました。");
-      }
-
-      // ファイルサイズのバリデーション
-      if ($_FILES['image']['size'] > 5000000) {
-        throw new Exception("ファイルサイズが大きすぎます。");
-      }
-
-      // 許可された拡張子かチェック
-      $allowed_ext = array('jpg', 'jpeg', 'png', 'gif');
-      $file_parts = explode('.', $_FILES['image']['name']);
-      $file_ext = strtolower(end($file_parts));
-      if (!in_array($file_ext, $allowed_ext)) {
-        throw new Exception("許可されていないファイル形式です。");
-      }
-
-      // ファイルの内容が画像であるかをチェック
-      $allowed_mime = array('image/jpeg', 'image/png', 'image/gif');
-      $file_mime = mime_content_type($_FILES['image']['tmp_name']);
-      if (!in_array($file_mime, $allowed_mime)) {
-        throw new Exception("許可されていないファイル形式です。");
-      }
-
-      $image_name = uniqid(mt_rand(), true) . '.' . substr(strrchr($_FILES['image']['name'], '.'), 1);
-      $image_path = dirname(__FILE__) . '/../../assets/img/quiz/' . $image_name;
-      move_uploaded_file($_FILES['image']['tmp_name'], $image_path);
-
-      $stmt = $dbh->prepare("INSERT INTO questions(content, image, supplement) VALUES(:content, :image, :supplement)");
-      $stmt->execute([
-        "content" => $_POST["content"],
-        "image" => $image_name,
-        "supplement" => $_POST["supplement"]
-      ]);
-      $lastInsertId = $dbh->lastInsertId();
-
-      $stmt = $dbh->prepare("INSERT INTO choices(name, valid, question_id) VALUES(:name, :valid, :question_id)");
-
-      for ($i = 0; $i < count($_POST["choices"]); $i++) {
-        $stmt->execute([
-          "name" => $_POST["choices"][$i],
-          "valid" => (int)$_POST['correctChoice'] === $i + 1 ? 1 : 0,
-          "question_id" => $lastInsertId
-        ]);
-      }
-
-      $_SESSION['message'] = "問題作成に成功しました。";
-      header('Location: /admin/index.php');
-      exit;
-    } catch (PDOException $e) {
-      $_SESSION['message'] = "問題作成に失敗しました。";
-      error_log($e->getMessage());
-      exit;
-    }
-  }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  try {
+    $dbh->beginTransaction();
+    $image_name = uniqid(mt_rand(), true) . '.' . substr(strrchr($_FILES['image']['name'], '.'), 1);
+    $image_path = dirname(__FILE__) . '/../../assets/img/quiz/' . $image_name;
+    move_uploaded_file($_FILES['image']['tmp_name'], $image_path);
+
+    // // ファイルアップロード
+    // $file = $_FILES['image'];
+    // $lang = 'ja_JP';
+
+    // $handle = new Upload($file, $lang);
+
+    // if (!$handle->uploaded) {
+    //   throw new Exception($handle->error);
+    // }
+
+    // // ファイルサイズのバリデーション： 5MB
+    // $handle->file_max_size = '5120000';
+    // // ファイルの拡張子と MIMEタイプをチェック
+    // $handle->allowed = array('image/jpeg', 'image/png', 'image/gif');
+    // // PNGに変換して拡張子を統一
+    // $handle->image_convert = 'png';
+    // $handle->file_new_name_ext = 'png';
+    // // サイズ統一
+    // $handle->image_resize = true;
+    // $handle->image_x = 718;
+    // // アップロードディレクトリを指定して保存
+    // $handle->process('../../assets/img/quiz/');
+    // if (!$handle->processed) {
+    //   throw new Exception($handle->error);
+    // }
+    // $image_name = $handle->file_dst_name;
+
+    $stmt = $dbh->prepare("INSERT INTO questions(content, image, supplement) VALUES(:content, :image, :supplement)");
+    $stmt->execute([
+      "content" => $_POST["content"],
+      "image" => $image_name,
+      "supplement" => $_POST["supplement"]
+    ]);
+    $lastInsertId = $dbh->lastInsertId();
+
+    $stmt = $dbh->prepare("INSERT INTO choices(name, valid, question_id) VALUES(:name, :valid, :question_id)");
+    for ($i = 0; $i < count($_POST["choices"]); $i++) {
+      $stmt->execute([
+        "name" => $_POST["choices"][$i],
+        "valid" => (int)$_POST['correctChoice'] === $i + 1 ? 1 : 0,
+        "question_id" => $lastInsertId
+      ]);
+    }
+
+    $dbh->commit();
+    $_SESSION['message'] = "問題作成に成功しました。";
+    header('Location: /admin/index.php');
+    exit;
+  } catch (PDOException $e) {
+    $dbh->rollBack();
+    $_SESSION['message'] = "問題作成に失敗しました。";
+    error_log($e->getMessage());
+    exit;
+  }
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="ja">
 
@@ -88,9 +94,9 @@ if (!isset($_SESSION['id'])) {
 </head>
 
 <body>
-  <?php include(dirname(__FILE__) . '/../../components/admin/header.php'); ?>
+  <?php include __DIR__ . '/../../components/admin/header.php'; ?>
   <div class="wrapper">
-    <?php include(dirname(__FILE__) . '/../../components/admin/sidebar.php'); ?>
+    <?php include __DIR__ . '/../../components/admin/sidebar.php'; ?>
     <main>
       <div class="container">
         <h1 class="mb-4">問題作成</h1>
@@ -132,7 +138,7 @@ if (!isset($_SESSION['id'])) {
           </div>
           <div class="mb-4">
             <label for="question" class="form-label">問題の画像</label>
-            <input type="file" name="image" id="image" class="form-control required" placeholder="問題文を入力してください" />
+            <input type="file" name="image" id="image" class="form-control required" />
           </div>
           <div class="mb-4">
             <label for="question" class="form-label">補足:</label>
