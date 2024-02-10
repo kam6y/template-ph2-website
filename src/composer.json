@@ -3,5 +3,8 @@
       "psr-4": {
           "POSSE\\": "./"
       }
+  },
+  "require": {
+    "verot/class.upload.php": "^2.1"
   }
 }

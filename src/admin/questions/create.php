@@ -14,36 +14,33 @@ if (!isset($_SESSION['id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   try {
     $dbh->beginTransaction();
-    $image_name = uniqid(mt_rand(), true) . '.' . substr(strrchr($_FILES['image']['name'], '.'), 1);
-    $image_path = dirname(__FILE__) . '/../../assets/img/quiz/' . $image_name;
-    move_uploaded_file($_FILES['image']['tmp_name'], $image_path);
 
-    // // ファイルアップロード
-    // $file = $_FILES['image'];
-    // $lang = 'ja_JP';
+    // ファイルアップロード
+    $file = $_FILES['image'];
+    $lang = 'ja_JP';
 
-    // $handle = new Upload($file, $lang);
+    $handle = new Upload($file, $lang);
 
-    // if (!$handle->uploaded) {
-    //   throw new Exception($handle->error);
-    // }
+    if (!$handle->uploaded) {
+      throw new Exception($handle->error);
+    }
 
-    // // ファイルサイズのバリデーション： 5MB
-    // $handle->file_max_size = '5120000';
-    // // ファイルの拡張子と MIMEタイプをチェック
-    // $handle->allowed = array('image/jpeg', 'image/png', 'image/gif');
-    // // PNGに変換して拡張子を統一
-    // $handle->image_convert = 'png';
-    // $handle->file_new_name_ext = 'png';
-    // // サイズ統一
-    // $handle->image_resize = true;
-    // $handle->image_x = 718;
-    // // アップロードディレクトリを指定して保存
-    // $handle->process('../../assets/img/quiz/');
-    // if (!$handle->processed) {
-    //   throw new Exception($handle->error);
-    // }
-    // $image_name = $handle->file_dst_name;
+    // ファイルサイズのバリデーション： 5MB
+    $handle->file_max_size = '5120000';
+    // ファイルの拡張子と MIMEタイプをチェック
+    $handle->allowed = array('image/jpeg', 'image/png', 'image/gif');
+    // PNGに変換して拡張子を統一
+    $handle->image_convert = 'png';
+    $handle->file_new_name_ext = 'png';
+    // サイズ統一
+    $handle->image_resize = true;
+    $handle->image_x = 718;
+    // アップロードディレクトリを指定して保存
+    $handle->process('../../assets/img/quiz/');
+    if (!$handle->processed) {
+      throw new Exception($handle->error);
+    }
+    $image_name = $handle->file_dst_name;
 
     $stmt = $dbh->prepare("INSERT INTO questions(content, image, supplement) VALUES(:content, :image, :supplement)");
     $stmt->execute([
